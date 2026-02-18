@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gerador de Nota de Pedido</title>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<style>
+body{
+    background:#f5f5f5;
+}
+.nota{
+    background:white;
+    padding:20px;
+    border-radius:10px;
+    box-shadow:0 0 10px rgba(0,0,0,0.1);
+}
+.logo{
+    max-width:150px;
+    display:block;
+    margin:auto;
+}
+@media print{
+    body *{
+        visibility:hidden;
+    }
+    .nota, .nota *{
+        visibility:visible;
+    }
+    .nota{
+        position:absolute;
+        left:0;
+        top:0;
+        width:100%;
+    }
+}
+</style>
+</head>
+<body>
+
+<div class="container mt-5">
+<div class="row">
+
+<!-- FORMULÁRIO -->
+<div class="col-md-6">
+<h3>Cadastro do Pedido</h3>
+
+<input type="text" id="cliente" class="form-control mb-2" placeholder="Cliente">
+<input type="text" id="contato" class="form-control mb-2" placeholder="Contato">
+
+<hr>
+
+<h5>Adicionar Item</h5>
+<input type="text" id="produto" class="form-control mb-2" placeholder="Produto">
+
+<div class="row">
+<div class="col">
+<input type="number" id="quantidade" class="form-control mb-2" placeholder="Qtd">
+</div>
+<div class="col">
+<input type="number" id="valor" class="form-control mb-2" placeholder="Valor Unitário">
+</div>
+</div>
+
+<button class="btn btn-primary w-100 mb-3" onclick="adicionarItem()">Adicionar Item</button>
+
+<ul class="list-group mb-3" id="listaItens"></ul>
+
+<input type="number" id="taxa" class="form-control mb-2" placeholder="Taxa de Entrega" value="0">
+
+<select id="pagamento" class="form-control mb-2" onchange="verificarPagamento()">
+<option>PIX</option>
+<option>Cartão</option>
+<option>Dinheiro</option>
+</select>
+
+<input type="number" id="trocoPara" class="form-control mb-3" placeholder="Troco para" style="display:none;">
+
+<button class="btn btn-success w-100 mb-2" onclick="gerarNota()">Gerar Nota</button>
+<button class="btn btn-secondary w-100 mb-2" onclick="imprimirNota()">Imprimir</button>
+<button class="btn btn-danger w-100" onclick="gerarPDF()">Gerar PDF</button>
+
+</div>
+
+<!-- NOTA -->
+<div class="col-md-6">
+<h3>Nota Gerada</h3>
+<div class="nota" id="nota">
+
+<img src="logo.png" class="logo mb-3">
+
+<pre id="resultado"></pre>
+
+</div>
+</div>
+
+</div>
+</div>
+
+<script>
+
+let itens = [];
+
+function adicionarItem(){
+    let produto = document.getElementById("produto").value;
+    let quantidade = parseFloat(document.getElementById("quantidade").value);
+    let valor = parseFloat(document.getElementById("valor").value);
+
+    if(produto && quantidade && valor){
+        itens.push({produto, quantidade, valor});
+        atualizarLista();
+        limparCampos();
+    }else{
+        alert("Preencha todos os campos!");
+    }
+}
+
+function removerItem(index){
+    itens.splice(index,1);
+    atualizarLista();
+}
+
+function atualizarLista(){
+    let lista = document.getElementById("listaItens");
+    lista.innerHTML = "";
+
+    itens.forEach((item,index)=>{
+        let totalItem = item.quantidade * item.valor;
+
+        lista.innerHTML += `
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+            ${item.quantidade}x ${item.produto} - R$ ${totalItem.toFixed(2)}
+            <button class="btn btn-sm btn-danger" onclick="removerItem(${index})">❌</button>
+        </li>
+        `;
+    });
+
+    gerarNota();
+}
+
+function limparCampos(){
+    document.getElementById("produto").value="";
+    document.getElementById("quantidade").value="";
+    document.getElementById("valor").value="";
+}
+
+function verificarPagamento(){
+    document.getElementById("trocoPara").style.display =
+        document.getElementById("pagamento").value === "Dinheiro" ? "block" : "none";
+}
+
+function gerarNota(){
+
+    let cliente = document.getElementById("cliente").value;
+    let contato = document.getElementById("contato").value;
+    let taxa = parseFloat(document.getElementById("taxa").value) || 0;
+    let pagamento = document.getElementById("pagamento").value;
+    let trocoPara = parseFloat(document.getElementById("trocoPara").value) || 0;
+
+    // DATA AUTOMÁTICA
+    let agora = new Date();
+    let dataFormatada = agora.toLocaleString("pt-BR");
+
+    let subtotal = 0;
+    let listaItensTexto = "";
+
+    itens.forEach(item=>{
+        let totalItem = item.quantidade * item.valor;
+        subtotal += totalItem;
+        listaItensTexto += `• ${item.quantidade}x ${item.produto} - R$ ${totalItem.toFixed(2)}\n`;
+    });
+
+    let total = subtotal + taxa;
+    let troco = pagamento === "Dinheiro" ? trocoPara - total : 0;
+
+    let nota = `
+🧾 NOTA DE PEDIDO
+📅 Data: ${dataFormatada}
+
+Cliente: ${cliente}
+📞 Contato: ${contato}
+
+Itens:
+${listaItensTexto}
+
+💰 Subtotal: R$ ${subtotal.toFixed(2)}
+🚚 Taxa de entrega: R$ ${taxa.toFixed(2)}
+
+💵 TOTAL: R$ ${total.toFixed(2)}
+💵 Forma de Pagamento: ${pagamento}
+`;
+
+    if(pagamento === "Dinheiro"){
+        nota += `💰 Troco para: R$ ${trocoPara.toFixed(2)}\n`;
+        nota += `💵 Troco: R$ ${troco.toFixed(2)}\n`;
+    }
+
+    document.getElementById("resultado").textContent = nota;
+}
+
+function imprimirNota(){
+    window.print();
+}
+
+async function gerarPDF(){
+    const { jsPDF } = window.jspdf;
+    let doc = new jsPDF();
+
+    let img = new Image();
+    img.src = "logo.png";
+
+    img.onload = function(){
+        doc.addImage(img, "PNG", 75, 10, 60, 30);
+        doc.text(document.getElementById("resultado").textContent, 10, 50);
+        doc.save("nota_pedido.pdf");
+    }
+}
+
+</script>
+
+</body>
+</html>
