@@ -3,99 +3,87 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sistema Profissional de Pedidos</title>
+<title>Cupom Fiscal</title>
 
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
 
 body{
-    background: linear-gradient(135deg,#1f2937,#111827);
+    background:#f0f0f0;
 }
 
 .card-custom{
     border:none;
-    border-radius:15px;
-    box-shadow:0 10px 30px rgba(0,0,0,0.3);
+    border-radius:10px;
+    box-shadow:0 5px 15px rgba(0,0,0,0.2);
 }
 
-.nota{
+.cupom{
+    width:300px;
     background:white;
-    padding:25px;
-    border-radius:15px;
-    min-height:500px;
-    white-space:pre-line;
+    padding:15px;
+    margin:auto;
+    font-family:"Courier New", monospace;
+    font-size:13px;
+    color:#000;
 }
 
-/* IMPRESSÃO PROFISSIONAL */
 @media print {
-
-    body{
-        background:white !important;
-    }
 
     body *{
         visibility:hidden;
     }
 
-    #nota, #nota *{
+    #cupom, #cupom *{
         visibility:visible;
     }
 
-    #nota{
+    #cupom{
         position:absolute;
         left:0;
         top:0;
-        width:100%;
-        box-shadow:none;
-        border-radius:0;
+        width:58mm;
     }
+
 }
 
 </style>
 </head>
 <body>
 
-<div class="container py-5">
+<div class="container py-4">
 <div class="row g-4">
 
-<!-- FORMULÁRIO -->
-<div class="col-lg-6">
+<!-- FORM -->
+<div class="col-md-6">
 <div class="card card-custom p-4 bg-white">
 
-<h4 class="mb-3">Novo Pedido</h4>
+<h5>Novo Pedido</h5>
 
 <div class="alert alert-secondary">
 Pedido Nº: <strong id="numeroPedido"></strong>
 </div>
 
-<input type="text" id="cliente" class="form-control mb-2" placeholder="Nome do Cliente">
-<input type="text" id="contato" class="form-control mb-3" placeholder="Telefone">
+<input type="text" id="cliente" class="form-control mb-2" placeholder="Cliente">
+<input type="text" id="contato" class="form-control mb-2" placeholder="Telefone">
 
-<select id="tipoEntrega" class="form-select mb-2" onchange="verificarEntrega()">
-<option value="">Tipo de Atendimento</option>
-<option value="retirada">Retirada no Local</option>
+<select id="tipoEntrega" class="form-select mb-2" onchange="toggleEndereco()">
+<option value="retirada">Retirada</option>
 <option value="entrega">Entrega</option>
 </select>
 
-<select id="lojas" class="form-select mb-2 d-none">
-<option>Loja 01</option>
-<option>Loja 02</option>
-<option>Loja 03</option>
-<option>Loja 04</option>
-</select>
+<div id="areaEndereco">
 
-<div id="enderecoEntrega" class="d-none">
-<input type="text" id="rua" class="form-control mb-2" placeholder="Rua">
-<input type="text" id="numero" class="form-control mb-2" placeholder="Número">
-<input type="text" id="bairro" class="form-control mb-2" placeholder="Bairro">
-<input type="text" id="cidade" class="form-control mb-3" placeholder="Cidade">
+<input type="text" id="endereco" class="form-control mb-2" placeholder="Rua e Número">
+
+<input type="text" id="complemento" class="form-control mb-2" placeholder="Complemento (Apto, Bloco, Casa...)">
+
+<input type="text" id="referencia" class="form-control mb-2" placeholder="Ponto de Referência">
+
 </div>
 
 <hr>
-
-<h6>Adicionar Item</h6>
 
 <div class="row g-2">
 <div class="col-5">
@@ -113,29 +101,23 @@ Pedido Nº: <strong id="numeroPedido"></strong>
 
 <ul class="list-group mt-3 mb-3" id="listaItens"></ul>
 
-<input type="number" id="taxa" class="form-control mb-2" placeholder="Taxa Entrega" value="0">
+<input type="number" id="taxa" class="form-control mb-2" placeholder="Taxa" value="0">
 
-<select id="pagamento" class="form-select mb-2" onchange="verificarPagamento()">
+<select id="pagamento" class="form-select mb-2">
 <option>PIX</option>
 <option>Cartão</option>
 <option>Dinheiro</option>
 </select>
 
-<input type="number" id="trocoPara" class="form-control mb-3 d-none" placeholder="Troco para">
-
-<div class="d-grid gap-2">
-<button class="btn btn-success" onclick="gerarNota()">Gerar Nota</button>
-<button class="btn btn-warning" onclick="enviarParaEntregador()">Enviar para Entregador</button>
-<button class="btn btn-secondary" onclick="imprimirNota()">Imprimir</button>
-<button class="btn btn-danger" onclick="gerarPDF()">Gerar PDF</button>
-</div>
+<button class="btn btn-success w-100 mb-2" onclick="gerarCupom()">Gerar Cupom</button>
+<button class="btn btn-secondary w-100" onclick="imprimir()">Imprimir</button>
 
 </div>
 </div>
 
-<!-- NOTA -->
-<div class="col-lg-6">
-<div class="nota" id="nota">
+<!-- CUPOM -->
+<div class="col-md-6">
+<div class="cupom" id="cupom">
 <pre id="resultado"></pre>
 </div>
 </div>
@@ -147,29 +129,19 @@ Pedido Nº: <strong id="numeroPedido"></strong>
 
 let itens = [];
 
-/* CONTADOR AUTOMÁTICO */
 let contadorPedido = localStorage.getItem("contadorPedido")
     ? parseInt(localStorage.getItem("contadorPedido"))
     : 1;
 
 document.getElementById("numeroPedido").innerText = contadorPedido;
 
-/* ENTREGADOR */
-const entregador = {
-    nome: "Fabricio",
-    telefone: "557197270344"
-};
-
-function verificarEntrega(){
+function toggleEndereco(){
     let tipo = document.getElementById("tipoEntrega").value;
-    document.getElementById("lojas").classList.toggle("d-none", tipo !== "retirada");
-    document.getElementById("enderecoEntrega").classList.toggle("d-none", tipo !== "entrega");
+    document.getElementById("areaEndereco").style.display =
+        tipo === "entrega" ? "block" : "none";
 }
 
-function verificarPagamento(){
-    document.getElementById("trocoPara").classList.toggle("d-none",
-        document.getElementById("pagamento").value !== "Dinheiro");
-}
+toggleEndereco();
 
 function adicionarItem(){
 
@@ -178,7 +150,7 @@ function adicionarItem(){
     let valor = parseFloat(document.getElementById("valor").value);
 
     if(!produto || !quantidade || !valor){
-        alert("Preencha todos os campos do item!");
+        alert("Preencha todos os campos!");
         return;
     }
 
@@ -192,119 +164,92 @@ function adicionarItem(){
 
 function atualizarLista(){
 
-    let lista = document.getElementById("listaItens");
-    lista.innerHTML="";
+    let listaItens = document.getElementById("listaItens");
+    listaItens.innerHTML="";
 
-    itens.forEach((item,index)=>{
-        let total = item.quantidade * item.valor;
+    itens.forEach(item=>{
+        let total=item.quantidade*item.valor;
 
-        lista.innerHTML += `
+        listaItens.innerHTML+=`
         <li class="list-group-item d-flex justify-content-between">
-            ${item.quantidade}x ${item.produto}
-            <span>
-                R$ ${total.toFixed(2)}
-                <button class="btn btn-sm btn-danger ms-2" onclick="removerItem(${index})">X</button>
-            </span>
+        ${item.quantidade}x ${item.produto}
+        <span>R$ ${total.toFixed(2)}</span>
         </li>`;
     });
 }
 
-function removerItem(index){
-    itens.splice(index,1);
-    atualizarLista();
-}
-
-function gerarNota(){
+function gerarCupom(){
 
     let cliente = document.getElementById("cliente").value;
     let contato = document.getElementById("contato").value;
+    let tipo = document.getElementById("tipoEntrega").value;
+    let endereco = document.getElementById("endereco").value;
+    let complemento = document.getElementById("complemento").value;
+    let referencia = document.getElementById("referencia").value;
     let taxa = parseFloat(document.getElementById("taxa").value) || 0;
     let pagamento = document.getElementById("pagamento").value;
-    let trocoPara = parseFloat(document.getElementById("trocoPara").value) || 0;
 
     let subtotal=0;
-    let listaTexto="";
+    let itensTexto="";
 
     itens.forEach(item=>{
-        let total = item.quantidade * item.valor;
+        let total=item.quantidade*item.valor;
         subtotal+=total;
-        listaTexto += `${item.quantidade}x ${item.produto} - R$ ${total.toFixed(2)}\n`;
+
+        itensTexto+=`
+${item.quantidade}x ${item.produto}
+   R$ ${total.toFixed(2)}
+`;
     });
 
-    let totalFinal = subtotal + taxa;
-    let troco = pagamento==="Dinheiro" ? trocoPara-totalFinal : 0;
+    let totalFinal=subtotal+taxa;
+    let agora = new Date().toLocaleString("pt-BR");
 
-    let enderecoTexto="";
-    let mapaLink="";
+    let enderecoTexto = "";
 
-    if(document.getElementById("tipoEntrega").value==="retirada"){
-        enderecoTexto="Retirada em: "+document.getElementById("lojas").value;
+    if(tipo==="entrega"){
+        enderecoTexto = `
+Entrega:
+${endereco}
+${complemento ? "Comp: "+complemento : ""}
+${referencia ? "Ref: "+referencia : ""}
+`;
     } else {
-        let rua=document.getElementById("rua").value;
-        let numero=document.getElementById("numero").value;
-        let bairro=document.getElementById("bairro").value;
-        let cidade=document.getElementById("cidade").value;
-
-        enderecoTexto=`Entrega: ${rua}, ${numero} - ${bairro} - ${cidade}`;
-        mapaLink=`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(rua+" "+numero+" "+bairro+" "+cidade)}`;
+        enderecoTexto = "Retirada no Local\n";
     }
 
-    let nota = `
+    let cupom = `
+        MINHA EMPRESA LTDA
+        CNPJ: 00.000.000/0001-00
+--------------------------------
 PEDIDO Nº ${contadorPedido}
-
+${agora}
+--------------------------------
 Cliente: ${cliente}
 Contato: ${contato}
+--------------------------------
 ${enderecoTexto}
-
+--------------------------------
 ITENS:
-${listaTexto}
-
+${itensTexto}
+--------------------------------
 Subtotal: R$ ${subtotal.toFixed(2)}
-Taxa: R$ ${taxa.toFixed(2)}
-TOTAL: R$ ${totalFinal.toFixed(2)}
+Taxa:     R$ ${taxa.toFixed(2)}
+TOTAL:    R$ ${totalFinal.toFixed(2)}
 Pagamento: ${pagamento}
+--------------------------------
+     OBRIGADO PELA PREFERÊNCIA!
 `;
 
-    if(pagamento==="Dinheiro"){
-        nota+=`Troco: R$ ${troco.toFixed(2)}\n`;
-    }
+    document.getElementById("resultado").textContent=cupom;
 
-    if(mapaLink){
-        nota+=`\nMapa: ${mapaLink}`;
-    }
-
-    document.getElementById("resultado").textContent=nota;
-
-    return nota;
+    localStorage.setItem("contadorPedido", contadorPedido+1);
 }
 
-/* WHATSAPP */
-function enviarParaEntregador(){
-    let nota = gerarNota();
-    let url = `https://wa.me/${entregador.telefone}?text=${encodeURIComponent(nota)}`;
-    window.open(url,"_blank");
+function imprimir(){
+    gerarCupom();
+    setTimeout(()=>{ window.print(); },300);
 }
-
-/* IMPRESSÃO CORRETA */
-function imprimirNota(){
-    gerarNota();
-    setTimeout(()=>{
-        window.print();
-    },300);
-}
-
-/* PDF */
-async function gerarPDF(){
-    const { jsPDF } = window.jspdf;
-    let doc = new jsPDF();
-    doc.text(document.getElementById("resultado").textContent,10,10);
-    doc.save("pedido_"+contadorPedido+".pdf");
-}
-
-/* AUMENTA O NÚMERO APÓS GERAR */
-document.querySelector(".btn-success").addEventListener("click",()=>{
-    localStorage.setItem("contadorPedido", contadorPedido + 1);
-});
 
 </script>
 
