@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MIX22 - Cupom Fiscal 80mm</title>
+<title>MIX22 - Cupom Fiscal Dinâmico</title>
 
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
@@ -19,21 +19,22 @@ body{
 }
 
 .cupom{
-    width:480px; /* 80mm */
+    width:100%; /* largura dinâmica */
+    max-width:600px; /* opcional: limita o tamanho para tela grande */
     background:white;
     padding:15px;
     margin:auto;
     font-family:"Courier New", monospace;
-    font-size:13px;
+    font-size:15px; /* fonte maior para leitura */
     color:#000;
     text-align:left;
 }
 
 .cupom pre{
     margin:0;
-    white-space: pre-wrap;
+    white-space: pre-wrap; /* quebra de linha automática */
     word-wrap: break-word;
-    line-height:1.2;
+    line-height:1.3;
 }
 
 @media print {
@@ -53,9 +54,10 @@ body{
         position:absolute;
         left:0;
         top:0;
-        width:80mm;
+        width:100%; /* ocupa toda a largura do papel */
+        max-width:none;
         text-align:left;
-        height:auto;
+        height:auto; /* altura automática */
     }
 }
 </style>
@@ -83,10 +85,22 @@ Pedido Nº: <strong id="numeroPedido"></strong>
 <option value="entrega">Entrega</option>
 </select>
 
+<!-- Área de Endereço -->
 <div id="areaEndereco">
 <input type="text" id="endereco" class="form-control mb-2" placeholder="Rua e Número">
 <input type="text" id="complemento" class="form-control mb-2" placeholder="Complemento">
 <input type="text" id="referencia" class="form-control mb-2" placeholder="Ponto de Referência">
+</div>
+
+<!-- Área de Retirada -->
+<div id="areaRetirada" style="display:none;">
+<select id="lojaRetirada" class="form-select mb-2">
+<option value="Lauro 01">Lauro 01</option>
+<option value="Lauro02">Lauro02</option>
+<option value="Itinga">Itinga</option>
+<option value="Vida Nova Infantil">Vida Nova Infantil</option>
+<option value="Vida Nova Adulto">Vida Nova Adulto</option>
+</select>
 </div>
 
 <hr>
@@ -133,107 +147,78 @@ Pedido Nº: <strong id="numeroPedido"></strong>
 </div>
 
 <script>
-
 let itens = [];
-
 let contadorPedido = localStorage.getItem("contadorPedido")
     ? parseInt(localStorage.getItem("contadorPedido"))
     : 1;
-
 document.getElementById("numeroPedido").innerText = contadorPedido;
 
 /* ENTREGADOR */
-const entregador = {
-    nome: "Fabricio",
-    telefone: "557197270344"
-};
+const entregador = { nome: "Fabricio", telefone: "557197270344" };
 
 function toggleEndereco(){
     let tipo = document.getElementById("tipoEntrega").value;
-    document.getElementById("areaEndereco").style.display =
-        tipo === "entrega" ? "block" : "none";
+    if(tipo==="entrega"){
+        document.getElementById("areaEndereco").style.display="block";
+        document.getElementById("areaRetirada").style.display="none";
+    } else {
+        document.getElementById("areaEndereco").style.display="none";
+        document.getElementById("areaRetirada").style.display="block";
+    }
 }
 toggleEndereco();
 
 function adicionarItem(){
-
     let produto = document.getElementById("produto").value;
     let quantidade = parseFloat(document.getElementById("quantidade").value);
     let valor = parseFloat(document.getElementById("valor").value);
-
-    if(!produto || !quantidade || !valor){
-        alert("Preencha todos os campos!");
-        return;
-    }
-
+    if(!produto || !quantidade || !valor){ alert("Preencha todos os campos!"); return; }
     itens.push({produto, quantidade, valor});
     atualizarLista();
-
     document.getElementById("produto").value="";
     document.getElementById("quantidade").value="";
     document.getElementById("valor").value="";
 }
 
 function atualizarLista(){
-
     let listaItens = document.getElementById("listaItens");
     listaItens.innerHTML="";
-
     itens.forEach(item=>{
         let total=item.quantidade*item.valor;
-
-        listaItens.innerHTML+=`
-        <li class="list-group-item d-flex justify-content-between">
-        ${item.quantidade}x ${item.produto}
-        <span>R$ ${total.toFixed(2)}</span>
-        </li>`;
+        listaItens.innerHTML+=`<li class="list-group-item d-flex justify-content-between">${item.quantidade}x ${item.produto}<span>R$ ${total.toFixed(2)}</span></li>`;
     });
 }
 
 function gerarCupom(){
-
     let cliente = document.getElementById("cliente").value;
     let contato = document.getElementById("contato").value;
     let tipo = document.getElementById("tipoEntrega").value;
-    let endereco = document.getElementById("endereco").value;
-    let complemento = document.getElementById("complemento").value;
-    let referencia = document.getElementById("referencia").value;
     let taxa = parseFloat(document.getElementById("taxa").value) || 0;
     let pagamento = document.getElementById("pagamento").value;
 
-    let subtotal=0;
-    let itensTexto="";
-
+    let subtotal=0, itensTexto="";
     itens.forEach(item=>{
         let total=item.quantidade*item.valor;
         subtotal+=total;
-
-        // garante alinhamento para ~48 chars
-        let nomeProd = item.produto.length>30 ? item.produto.slice(0,30) : item.produto;
-        itensTexto+=`${item.quantidade}x ${nomeProd.padEnd(30,' ')}R$ ${total.toFixed(2)}\n`;
+        let nomeProd = item.produto.length>40 ? item.produto.slice(0,40) : item.produto;
+        itensTexto+=`${item.quantidade}x ${nomeProd.padEnd(35,' ')}R$ ${total.toFixed(2)}\n`;
     });
 
     let totalFinal=subtotal+taxa;
     let agora = new Date().toLocaleString("pt-BR");
 
-    let enderecoTexto="";
-    let mapaLink="";
-
+    let enderecoTexto="", mapaLink="";
     if(tipo==="entrega"){
-        enderecoTexto = `Entrega:
-${endereco}
-${complemento ? "Comp: "+complemento : ""}
-${referencia ? "Ref: "+referencia : ""}
-`;
-
-        mapaLink = "https://www.google.com/maps/search/?api=1&query=" +
-            encodeURIComponent(endereco + " " + complemento + " " + referencia);
-
+        let endereco = document.getElementById("endereco").value;
+        let complemento = document.getElementById("complemento").value;
+        let referencia = document.getElementById("referencia").value;
+        enderecoTexto = `Entrega:\n${endereco}\n${complemento ? "Comp: "+complemento : ""}\n${referencia ? "Ref: "+referencia : ""}\n`;
+        mapaLink = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(endereco + " " + complemento + " " + referencia);
     } else {
-        enderecoTexto="Retirada no Local\n";
+        let loja = document.getElementById("lojaRetirada").value;
+        enderecoTexto=`Retirada na loja: ${loja}\n`;
     }
 
-    // ASCII Logo centralizado (~48 caracteres por linha)
     let logoAscii = `
 ************************************************
 *                                              *
@@ -264,32 +249,22 @@ OBRIGADO PELA PREFERÊNCIA!
 `;
 
     document.getElementById("resultado").textContent=cupom;
-
     localStorage.setItem("contadorPedido", contadorPedido+1);
-
     return {cupom, mapaLink};
 }
 
 function enviarParaEntregador(){
-
     let dados = gerarCupom();
-
     let mensagem = document.getElementById("resultado").textContent;
-
-    if(dados.mapaLink){
-        mensagem += "\nMapa: " + dados.mapaLink;
-    }
-
+    if(dados.mapaLink) mensagem += "\nMapa: " + dados.mapaLink;
     let url = "https://wa.me/" + entregador.telefone + "?text=" + encodeURIComponent(mensagem);
-
     window.open(url, "_blank");
 }
 
 function imprimir(){
     gerarCupom();
-    setTimeout(()=>{ window.print(); },500); // espera o DOM atualizar
+    setTimeout(()=>{ window.print(); },500);
 }
-
 </script>
 
 </body>
