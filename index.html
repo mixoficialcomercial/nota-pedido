@@ -104,6 +104,9 @@ Pedido Nº: <strong id="numeroPedido"></strong>
 <option>Dinheiro</option>
 </select>
 
+<!-- Campo de Observação do Pedido -->
+<textarea id="observacaoPedido" class="form-control mb-2" placeholder="Observações do pedido (opcional)"></textarea>
+
 <button class="btn btn-success w-100 mb-2" onclick="finalizarPedido()">
 Finalizar Pedido (Enviar Cliente)
 </button>
@@ -164,14 +167,22 @@ function adicionarItem(){
 function atualizarLista(){
     let listaItens = document.getElementById("listaItens");
     listaItens.innerHTML="";
-    itens.forEach(item=>{
+    itens.forEach((item, index)=>{
         let total=item.quantidade*item.valor;
         listaItens.innerHTML+=
-        `<li class="list-group-item d-flex justify-content-between">
-        ${item.quantidade}x ${item.produto}
-        <span>${total.toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}</span>
+        `<li class="list-group-item d-flex justify-content-between align-items-start">
+            <div>${item.quantidade}x ${item.produto}</div>
+            <div>
+                <span>${total.toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}</span>
+                <button class="btn btn-sm btn-danger ms-2" onclick="removerItem(${index})">X</button>
+            </div>
         </li>`;
     });
+}
+
+function removerItem(index){
+    itens.splice(index, 1);
+    atualizarLista();
 }
 
 function gerarCupom(){
@@ -180,6 +191,7 @@ function gerarCupom(){
     let tipo = document.getElementById("tipoEntrega").value;
     let taxa = parseFloat(document.getElementById("taxa").value) || 0;
     let pagamento = document.getElementById("pagamento").value;
+    let observacaoPedido = document.getElementById("observacaoPedido").value;
 
     let subtotal=0, itensTexto="";
     itens.forEach(item=>{
@@ -195,10 +207,7 @@ function gerarCupom(){
     if(tipo==="entrega"){
         let endereco = document.getElementById("endereco").value;
         let complemento = document.getElementById("complemento").value;
-
         enderecoTexto = `Entrega:\n${endereco}\n${complemento}\n`;
-
-        // 🔥 AGORA USA APENAS ENDEREÇO + COMPLEMENTO
         mapaLink = "https://www.google.com/maps/search/?api=1&query=" +
         encodeURIComponent(endereco + " " + complemento);
     } else {
@@ -223,6 +232,7 @@ Subtotal: ${subtotal.toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}
 Taxa: ${taxa.toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}
 TOTAL: ${totalFinal.toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}
 Pagamento: ${pagamento}
+${observacaoPedido ? "Observações: " + observacaoPedido + "\n" : ""}
 --------------------------------
 OBRIGADO PELA PREFERÊNCIA!
 `;
@@ -255,6 +265,7 @@ function finalizarPedido(){
 
     itens=[];
     atualizarLista();
+    document.getElementById("observacaoPedido").value="";
 }
 
 function enviarParaEntregador(){
@@ -281,4 +292,3 @@ function imprimir(){
 
 </body>
 </html>
-
